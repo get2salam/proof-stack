@@ -7,40 +7,41 @@
     <meta name="description" content="Organize screenshots, wins, quotes, and outcomes into a stronger proof library." />
     <link rel="stylesheet" href="./styles/app.css" />
   </head>
-  <body style="--primary:#c4b5fd;--secondary:#ddd6fe;--panel:#151125;--edge:#4a3b73;--glow:rgba(196, 181, 253, 0.22)">
+  <body style="--primary:#facc15;--secondary:#fb7185;--panel:#17140b;--edge:#6b5a25;--glow:rgba(250, 204, 21, 0.22)">
     <div class="shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Local-first micro app</p>
+          <p class="eyebrow">Proof library workspace</p>
           <h1>Proof Stack</h1>
-          <p class="lede">Organize screenshots, wins, quotes, and outcomes into a stronger proof library.</p>
+          <p class="lede">Turn proof assets into a usable library with source notes, best use, trust lift, and review timing.</p>
         </div>
         <div class="actions">
           <button class="btn" data-action="import">Import</button>
           <button class="btn" data-action="export">Export</button>
-          <button class="btn btn-primary" data-action="new">New proof</button>
+          <button class="btn btn-primary" data-action="new">New proof asset</button>
           <input id="import-file" type="file" accept=".json,application/json" hidden />
         </div>
       </header>
 
       <section class="hero card">
         <div>
-          <p class="eyebrow">Proofs board</p>
+          <p class="eyebrow">Proof stack board</p>
           <h2 data-role="board-title"></h2>
           <p data-role="board-subtitle"></p>
         </div>
-        <p class="accent">Strong proof lowers selling friction everywhere else.</p>
+        <p class="accent">Proof compounds harder when source, best use, and trust lift are visible, not buried in folders.</p>
       </section>
 
       <section class="stats" data-role="stats"></section>
+      <section class="insights" data-role="insights"></section>
 
       <section class="controls card">
         <label>
           <span>Search</span>
-          <input type="search" data-field="search" placeholder="Search proofs..." />
+          <input type="search" data-field="search" placeholder="Search proof assets, notes, and next steps..." />
         </label>
         <label>
-          <span>Proof type</span>
+          <span>Asset type</span>
           <select data-field="category"></select>
         </label>
         <label>
@@ -54,14 +55,19 @@
         <article class="card list-panel">
           <div class="panel-head">
             <div>
-              <strong>Proofs</strong>
-              <p>Sorted by signal minus friction.</p>
+              <strong>Proof assets</strong>
+              <p>Organize screenshots, wins, quotes, and outcomes into a stronger proof library.</p>
             </div>
             <span class="chip" data-role="count"></span>
           </div>
           <div class="list" data-role="list"></div>
         </article>
         <article class="card editor-panel" data-role="editor"></article>
+      </section>
+
+      <section class="secondary">
+        <article class="card secondary-panel" data-role="secondary-primary"></article>
+        <article class="card secondary-panel" data-role="secondary-secondary"></article>
       </section>
     </div>
     <script type="module" src="./js/main.js"></script>
