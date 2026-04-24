@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Proof Stack preview</title>
+  <desc id="desc">Preview artwork for Proof Stack, a local-first board for proofs.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a1020" />
+      <stop offset="100%" stop-color="#060912" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c4b5fd" />
+      <stop offset="100%" stop-color="#ddd6fe" />
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)" />
+  <rect x="36" y="32" width="888" height="86" rx="24" fill="#151125" stroke="#4a3b73" />
+  <text x="66" y="72" font-family="Inter, Arial, sans-serif" font-size="28" fill="#eef2ff">Proof Stack</text>
+  <text x="66" y="96" font-family="Inter, Arial, sans-serif" font-size="14" fill="#b7c0d9">Organize screenshots, wins, quotes, and outcomes into a stronger proof library.</text>
+  <rect x="36" y="142" width="888" height="362" rx="28" fill="#151125" stroke="#4a3b73" />
+  <rect x="62" y="170" width="280" height="306" rx="24" fill="#0b1020" stroke="#4a3b73" />
+  <rect x="370" y="170" width="528" height="92" rx="22" fill="#0b1020" stroke="#4a3b73" />
+  <text x="88" y="205" font-family="Inter, Arial, sans-serif" font-size="18" fill="#eef2ff">Top proofs</text>
+  <text x="396" y="206" font-family="Inter, Arial, sans-serif" font-size="17" fill="#eef2ff">Proof library</text>
+  <text x="396" y="232" font-family="Inter, Arial, sans-serif" font-size="13" fill="#b7c0d9">A small evidence system for trust-building assets.</text>
+  <rect x="396" y="246" width="168" height="8" rx="4" fill="url(#accent)" opacity="0.9" />
+  <rect x="370" y="280" width="528" height="196" rx="24" fill="#0b1020" stroke="#4a3b73" />
+
+<rect x="88" y="228" width="228" height="58" rx="18" fill="#111827" stroke="#4a3b73" />
+<text x="106" y="252" font-family="Inter, Arial, sans-serif" font-size="15" fill="#eef2ff">Before and after dashboard visual</text>
+<text x="106" y="274" font-family="Inter, Arial, sans-serif" font-size="12" fill="#b7c0d9">Screenshot · Strong</text>
+<rect x="790" y="316" width="76" height="28" rx="14" fill="url(#accent)" opacity="0.85" />
+
+<rect x="88" y="306" width="228" height="58" rx="18" fill="#111827" stroke="#4a3b73" />
+<text x="106" y="330" font-family="Inter, Arial, sans-serif" font-size="15" fill="#eef2ff">Time saved case note</text>
+<text x="106" y="352" font-family="Inter, Arial, sans-serif" font-size="12" fill="#b7c0d9">Outcome · Useful</text>
+<rect x="790" y="364" width="76" height="28" rx="14" fill="url(#accent)" opacity="0.85" />
+
+<rect x="88" y="384" width="228" height="58" rx="18" fill="#111827" stroke="#4a3b73" />
+<text x="106" y="408" font-family="Inter, Arial, sans-serif" font-size="15" fill="#eef2ff">Short demo clip</text>
+<text x="106" y="430" font-family="Inter, Arial, sans-serif" font-size="12" fill="#b7c0d9">Demo · Loose</text>
+<rect x="790" y="412" width="76" height="28" rx="14" fill="url(#accent)" opacity="0.85" />
+
+  <text x="402" y="322" font-family="Inter, Arial, sans-serif" font-size="18" fill="#eef2ff">Ranked list with inline editing</text>
+  <text x="402" y="350" font-family="Inter, Arial, sans-serif" font-size="13" fill="#b7c0d9">Search, filter, edit, export, and keep the strongest items visible.</text>
+  <rect x="402" y="380" width="438" height="12" rx="6" fill="rgba(255,255,255,0.08)" />
+  <rect x="402" y="380" width="232" height="12" rx="6" fill="url(#accent)" />
+  <rect x="402" y="410" width="386" height="12" rx="6" fill="rgba(255,255,255,0.08)" />
+  <rect x="402" y="410" width="288" height="12" rx="6" fill="url(#accent)" opacity="0.75" />
+  <rect x="402" y="440" width="338" height="12" rx="6" fill="rgba(255,255,255,0.08)" />
+  <rect x="402" y="440" width="198" height="12" rx="6" fill="url(#accent)" opacity="0.58" />
+</svg>
