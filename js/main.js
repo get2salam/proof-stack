@@ -238,6 +238,20 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, Number(value)));
 }
 
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function safeISODate(value, fallback) {
+  // Imported JSON or migrated state can carry arbitrary strings; an unvalidated
+  // date breaks daysFromToday/bumpDate and, when echoed into an input value
+  // attribute, would let a crafted backup escape the quote and inject markup.
+  // Round-trip through Date so impossible calendar days (e.g. Feb 29 in a
+  // non-leap year) are rejected instead of silently rolling forward.
+  if (typeof value !== 'string' || !ISO_DATE_PATTERN.test(value)) return fallback;
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return toLocalISODate(parsed) === value ? value : fallback;
+}
+
 function completedStates() {
   return new Set(SPEC.completedStates || []);
 }
@@ -266,7 +280,7 @@ function normalize(item = {}) {
     metric: clamp(item.metric ?? SPEC.metric.default ?? 6, SPEC.metric.min, SPEC.metric.max),
     textOne: item.textOne || SPEC.textOne.default,
     textTwo: item.textTwo || SPEC.textTwo.default,
-    date: item.date || todayISO(3),
+    date: safeISODate(item.date, todayISO(3)),
   };
 }
 
@@ -560,7 +574,7 @@ function renderEditor(item) {
       <div class="field-grid">
         <label class="field">
           <span>${SPEC.date.label}</span>
-          <input type="date" data-item-field="date" value="${item.date}" />
+          <input type="date" data-item-field="date" value="${escapeHtml(item.date)}" />
         </label>
         <label class="field range-wrap">
           <span>${SPEC.metric.label}</span>
