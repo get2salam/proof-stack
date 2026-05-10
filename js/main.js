@@ -718,9 +718,15 @@ document.addEventListener('change', async (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.target.closest('input, textarea, select')) return;
+  // Skip when a modifier is held so we never swallow browser/system shortcuts
+  // like Cmd+N (new window), Ctrl+N, or Cmd+/ — preventDefault() would
+  // otherwise silently block them while still triggering our handler.
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.isComposing) return;
   if (event.key.toLowerCase() === 'n') {
     event.preventDefault();
     addItem();
+    return;
   }
   if (event.key === '/') {
     event.preventDefault();

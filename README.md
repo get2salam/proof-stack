@@ -36,6 +36,9 @@ Then open <http://localhost:8000>.
 - `N` creates a new proof asset
 - `/` focuses the search box
 
+Both shortcuts only fire when no input is focused and no modifier key (`Cmd`,
+`Ctrl`, or `Alt`) is held, so system shortcuts like `Cmd`+`N` keep working.
+
 ## Privacy
 
 Everything stays in your browser unless you export a JSON backup.
