@@ -393,14 +393,31 @@ function exportState() {
   showToast('Downloaded backup.');
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseImportedBackup(raw) {
+  // Backups can carry arbitrary JSON. Without these guards a top-level array,
+  // primitive, or null reaches the spread/`.items` accesses below and either
+  // throws an unhelpful TypeError or produces a state object with stray keys
+  // from a spread string. Filtering item entries protects normalize(), whose
+  // `= {}` default only applies to `undefined` and would crash on `null`.
+  const parsed = JSON.parse(raw);
+  if (!isPlainObject(parsed)) throw new Error('Backup must be a JSON object');
+  const items = Array.isArray(parsed.items) ? parsed.items.filter(isPlainObject) : [];
+  const ui = isPlainObject(parsed.ui) ? parsed.ui : {};
+  return { ...parsed, items, ui };
+}
+
 async function importState(file) {
   const raw = await file.text();
-  const parsed = JSON.parse(raw);
+  const parsed = parseImportedBackup(raw);
   commit({
     ...seedState(),
     ...parsed,
-    items: (parsed.items || []).map((item) => normalize(item)),
-    ui: { ...seedState().ui, ...(parsed.ui || {}) },
+    items: parsed.items.map((item) => normalize(item)),
+    ui: { ...seedState().ui, ...parsed.ui },
   });
   showToast('Imported backup.');
 }
