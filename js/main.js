@@ -299,17 +299,37 @@ function seedState() {
   };
 }
 
+function safeString(value, fallback) {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function mergeImportedState(parsed) {
+  // Persisted/imported state can carry arbitrary types. Without these guards a
+  // non-string boardTitle would render as "[object Object]" in the heading and
+  // a non-string ui.search would crash filteredItems()'s trim() call.
+  const base = seedState();
+  const parsedUi = isPlainObject(parsed.ui) ? parsed.ui : {};
+  return {
+    ...base,
+    boardTitle: safeString(parsed.boardTitle, base.boardTitle),
+    boardSubtitle: safeString(parsed.boardSubtitle, base.boardSubtitle),
+    items: (Array.isArray(parsed.items) ? parsed.items : []).filter(isPlainObject).map((item) => normalize(item)),
+    ui: {
+      search: safeString(parsedUi.search, base.ui.search),
+      category: safeString(parsedUi.category, base.ui.category),
+      status: safeString(parsedUi.status, base.ui.status),
+      selectedId: safeString(parsedUi.selectedId, base.ui.selectedId),
+    },
+  };
+}
+
 function hydrate() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return seedState();
     const parsed = JSON.parse(raw);
-    return {
-      ...seedState(),
-      ...parsed,
-      items: (parsed.items || []).map((item) => normalize(item)),
-      ui: { ...seedState().ui, ...(parsed.ui || {}) },
-    };
+    if (!isPlainObject(parsed)) return seedState();
+    return mergeImportedState(parsed);
   } catch (error) {
     console.warn('Falling back to seed state', error);
     return seedState();
@@ -413,12 +433,7 @@ function parseImportedBackup(raw) {
 async function importState(file) {
   const raw = await file.text();
   const parsed = parseImportedBackup(raw);
-  commit({
-    ...seedState(),
-    ...parsed,
-    items: parsed.items.map((item) => normalize(item)),
-    ui: { ...seedState().ui, ...parsed.ui },
-  });
+  commit(mergeImportedState(parsed));
   showToast('Imported backup.');
 }
 
