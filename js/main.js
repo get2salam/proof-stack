@@ -172,6 +172,12 @@ const refs = {
 const toastHost = (() => {
   const host = document.createElement('div');
   host.className = 'toast-host';
+  // role="status" plus aria-live="polite" lets screen readers announce toast
+  // text when nodes are appended, so users of assistive tech get the same
+  // confirmation feedback ("Added a new proof asset", "Imported backup") that
+  // sighted users see.
+  host.setAttribute('role', 'status');
+  host.setAttribute('aria-live', 'polite');
   document.body.appendChild(host);
   return host;
 })();
@@ -179,6 +185,8 @@ const toastHost = (() => {
 function showToast(message) {
   const node = document.createElement('div');
   node.className = 'toast';
+  // Announce each toast as a single unit instead of reading the appended diff.
+  node.setAttribute('aria-atomic', 'true');
   node.textContent = message;
   toastHost.appendChild(node);
   requestAnimationFrame(() => node.classList.add('is-visible'));
@@ -393,6 +401,9 @@ function addItem() {
 function removeSelected() {
   const target = selectedItem();
   if (!target) return;
+  // Remove is destructive and there is no undo, so require an explicit confirm
+  // before discarding the selected asset.
+  if (!window.confirm(`Remove "${target.title}"?`)) return;
   const nextItems = state.items.filter((item) => item.id !== target.id);
   commit({
     ...state,
@@ -755,6 +766,10 @@ document.addEventListener('keydown', (event) => {
   // otherwise silently block them while still triggering our handler.
   if (event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.isComposing) return;
+  // Browsers fire keydown repeatedly while a key is held; without this guard,
+  // holding N would spawn a new asset every few milliseconds and holding /
+  // would keep re-focusing the search box.
+  if (event.repeat) return;
   if (event.key.toLowerCase() === 'n') {
     event.preventDefault();
     addItem();
