@@ -246,6 +246,18 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, Number(value)));
 }
 
+function safeNumber(value, fallback, min, max) {
+  // Imported JSON or migrated state can carry non-numeric score/effort/metric
+  // fields. Number("abc") is NaN, and clamp() then returns NaN because
+  // Math.min/max propagate NaN — that poisons priority(), the sort comparator,
+  // and the range inputs' value attributes downstream. Treat null/undefined
+  // as missing rather than coercing them to 0 and clamping to the lower bound.
+  if (value == null) return fallback;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(min, Math.min(max, num));
+}
+
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function safeISODate(value, fallback) {
@@ -283,9 +295,9 @@ function normalize(item = {}) {
     note: item.note || SPEC.defaults.note,
     category: SPEC.categories.includes(item.category) ? item.category : SPEC.categories[0],
     state: SPEC.states.includes(item.state) ? item.state : SPEC.states[0],
-    score: clamp(item.score ?? 7, 1, 10),
-    effort: clamp(item.effort ?? 3, 1, 10),
-    metric: clamp(item.metric ?? SPEC.metric.default ?? 6, SPEC.metric.min, SPEC.metric.max),
+    score: safeNumber(item.score, 7, 1, 10),
+    effort: safeNumber(item.effort, 3, 1, 10),
+    metric: safeNumber(item.metric, SPEC.metric.default ?? 6, SPEC.metric.min, SPEC.metric.max),
     textOne: item.textOne || SPEC.textOne.default,
     textTwo: item.textTwo || SPEC.textTwo.default,
     date: safeISODate(item.date, todayISO(3)),
