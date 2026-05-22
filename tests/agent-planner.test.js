@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -248,6 +248,21 @@ describe('runPlanLoop', () => {
     assert.ok(result.log.length <= 2);
   });
 
+  it('produces an audit summary via summarizePlanRun', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Curated', metric: 6, date: '2025-01-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const result = runPlanLoop(plan, items);
+    const summary = summarizePlanRun(result);
+    assert.equal(summary.stepsRun, plan.actions.length);
+    assert.equal(summary.passCount + summary.failCount, summary.stepsRun);
+    assert.ok(summary.passRate >= 0 && summary.passRate <= 1);
+    assert.ok(Array.isArray(summary.failedIds));
+    assert.equal(summary.reason, 'completed');
+  });
+
   it('final checkpoint stepIndex equals total steps after full run', () => {
     const items = [
       { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
@@ -262,5 +277,26 @@ describe('runPlanLoop', () => {
     assert.equal(result.checkpoint.stepIndex, plan.actions.length);
     assert.equal(result.checkpoint.passed.length, plan.actions.length);
     assert.ok(result.checkpoint.passed.every(Boolean));
+  });
+});
+
+describe('summarizePlanRun', () => {
+  it('returns invalid_result for null input', () => {
+    const summary = summarizePlanRun(null);
+    assert.equal(summary.reason, 'invalid_result');
+    assert.equal(summary.stepsRun, 0);
+    assert.deepEqual(summary.failedIds, []);
+  });
+
+  it('collects failed action ids when steps fail', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const summary = summarizePlanRun(runPlanLoop(plan, items));
+    assert.equal(summary.failCount, plan.actions.length);
+    assert.equal(summary.passRate, 0);
+    assert.ok(summary.failedIds.includes('a') && summary.failedIds.includes('b'));
   });
 });

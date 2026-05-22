@@ -141,6 +141,25 @@ export function runPlanLoop(plan, items, { maxSteps = 50, haltOnFailure = false 
 }
 
 /**
+ * Summarize a completed plan run for human/LLM audit consumption.
+ * Aggregates pass/fail counts, the termination reason, and the ids of
+ * failed steps so callers can render a single-glance audit line without
+ * walking the per-step log themselves.
+ */
+export function summarizePlanRun(result) {
+  if (!result || !Array.isArray(result.log)) {
+    return { stepsRun: 0, passCount: 0, failCount: 0, passRate: 0, failedIds: [], reason: 'invalid_result' };
+  }
+  const passCount = result.log.filter(entry => entry.evaluation?.passed).length;
+  const failedIds = result.log
+    .filter(entry => !entry.evaluation?.passed)
+    .map(entry => entry.action?.id ?? null);
+  const stepsRun = result.log.length;
+  const passRate = stepsRun > 0 ? +(passCount / stepsRun).toFixed(2) : 0;
+  return { stepsRun, passCount, failCount: stepsRun - passCount, passRate, failedIds, reason: result.reason ?? 'unknown' };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */
