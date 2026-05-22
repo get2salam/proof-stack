@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -94,5 +94,98 @@ describe('evaluateStep', () => {
   it('includes structured fields for audit trail', () => {
     const result = evaluateStep({ id: 'z', state: 'Ready' }, 'Ready');
     assert.ok('id' in result && 'expected' in result && 'actual' in result && 'passed' in result && 'reason' in result);
+  });
+});
+
+describe('createPlanCheckpoint', () => {
+  it('initializes checkpoint from a built plan', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Curated', metric: 6, date: '2026-05-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const checkpoint = createPlanCheckpoint(plan);
+    assert.equal(checkpoint.stepIndex, 0);
+    assert.equal(checkpoint.totalSteps, plan.actions.length);
+    assert.equal(checkpoint.passCount, 0);
+    assert.equal(checkpoint.baselineConfidence, plan.confidence);
+  });
+
+  it('handles null plan gracefully', () => {
+    const checkpoint = createPlanCheckpoint(null);
+    assert.equal(checkpoint.stepIndex, 0);
+    assert.equal(checkpoint.totalSteps, 0);
+  });
+
+  it('includes actions array for agent reference', () => {
+    const items = [{ id: 'x', title: 'X', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' }];
+    const plan = buildPlan(items);
+    const checkpoint = createPlanCheckpoint(plan);
+    assert.ok(Array.isArray(checkpoint.actions));
+    assert.ok(checkpoint.actions.length > 0);
+  });
+});
+
+describe('advanceCheckpoint', () => {
+  it('increments step index on each advance', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    let checkpoint = createPlanCheckpoint(plan);
+    const eval1 = evaluateStep({ id: 'a', state: 'Curated' }, 'Curated');
+    checkpoint = advanceCheckpoint(checkpoint, eval1);
+    assert.equal(checkpoint.stepIndex, 1);
+  });
+
+  it('tracks pass count as steps are evaluated', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    let checkpoint = createPlanCheckpoint(plan);
+    const passEval = { passed: true };
+    const failEval = { passed: false };
+    checkpoint = advanceCheckpoint(checkpoint, passEval);
+    assert.equal(checkpoint.passCount, 1);
+    checkpoint = advanceCheckpoint(checkpoint, failEval);
+    assert.equal(checkpoint.passCount, 1);
+  });
+
+  it('updates confidence based on pass rate', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    let checkpoint = createPlanCheckpoint(plan);
+    const passEval = { passed: true };
+    checkpoint = advanceCheckpoint(checkpoint, passEval);
+    assert.ok(checkpoint.updatedConfidence <= checkpoint.baselineConfidence);
+    assert.ok(checkpoint.updatedConfidence > 0);
+  });
+
+  it('records passed/failed steps in order', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    let checkpoint = createPlanCheckpoint(plan);
+    checkpoint = advanceCheckpoint(checkpoint, { passed: true });
+    checkpoint = advanceCheckpoint(checkpoint, { passed: false });
+    assert.deepEqual(checkpoint.passed, [true, false]);
+  });
+
+  it('clamps step index to total steps', () => {
+    const items = [{ id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' }];
+    const plan = buildPlan(items);
+    let checkpoint = createPlanCheckpoint(plan);
+    checkpoint = advanceCheckpoint(checkpoint, { passed: true });
+    checkpoint = advanceCheckpoint(checkpoint, { passed: false });
+    checkpoint = advanceCheckpoint(checkpoint, { passed: true });
+    assert.ok(checkpoint.stepIndex <= checkpoint.totalSteps);
   });
 });

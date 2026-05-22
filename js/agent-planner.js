@@ -82,3 +82,42 @@ export function evaluateStep(item, expectedState) {
       : `Expected '${expectedState}', found '${item?.state ?? 'undefined'}'.`,
   };
 }
+
+/**
+ * Create a checkpoint from a built plan to track agent execution progress.
+ * Returns immutable snapshot of plan state with step index and pass/fail tracking.
+ */
+export function createPlanCheckpoint(plan) {
+  if (!plan || !Array.isArray(plan.actions)) {
+    return { stepIndex: 0, totalSteps: 0, actions: [], baselineConfidence: 0, passCount: 0, passed: [] };
+  }
+  return {
+    stepIndex: 0,
+    totalSteps: plan.actions.length,
+    actions: plan.actions,
+    baselineConfidence: plan.confidence,
+    passCount: 0,
+    passed: [],
+  };
+}
+
+/**
+ * Advance a checkpoint by one step, recording pass/fail and updating confidence.
+ * Returns updated checkpoint with step tracking for agent audit trails.
+ */
+export function advanceCheckpoint(checkpoint, stepEvaluation) {
+  if (!checkpoint || !stepEvaluation) return checkpoint;
+  const newPassCount = checkpoint.passCount + (stepEvaluation.passed ? 1 : 0);
+  const newPassed = [...checkpoint.passed, stepEvaluation.passed];
+  const stepIndex = Math.min(checkpoint.stepIndex + 1, checkpoint.totalSteps);
+  const updatedConfidence = checkpoint.totalSteps > 0
+    ? +(checkpoint.baselineConfidence * (newPassCount / checkpoint.totalSteps)).toFixed(2)
+    : checkpoint.baselineConfidence;
+  return {
+    ...checkpoint,
+    stepIndex,
+    passCount: newPassCount,
+    passed: newPassed,
+    updatedConfidence,
+  };
+}
