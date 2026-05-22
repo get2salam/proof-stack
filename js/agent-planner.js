@@ -102,6 +102,45 @@ export function createPlanCheckpoint(plan) {
 }
 
 /**
+ * Run a plan to completion by iterating through each action, evaluating it against
+ * the provided items, and advancing the checkpoint with each result.
+ *
+ * Includes a maxSteps safety cap to prevent runaway autonomous execution.
+ * Returns the final checkpoint, a per-step execution log, and a termination reason.
+ */
+export function runPlanLoop(plan, items, { maxSteps = 50, haltOnFailure = false } = {}) {
+  if (!plan || !Array.isArray(plan.actions)) {
+    return { checkpoint: null, log: [], halted: true, reason: 'invalid_plan' };
+  }
+
+  const itemMap = new Map(
+    (Array.isArray(items) ? items : []).map(item => [item.id, item])
+  );
+
+  let checkpoint = createPlanCheckpoint(plan);
+  const log = [];
+
+  while (checkpoint.stepIndex < checkpoint.totalSteps) {
+    if (log.length >= maxSteps) {
+      return { checkpoint, log, halted: true, reason: 'max_steps_exceeded' };
+    }
+
+    const action = checkpoint.actions[checkpoint.stepIndex];
+    const item = itemMap.get(action.id) ?? null;
+    const evaluation = evaluateStep(item, action.targetState);
+
+    log.push({ step: checkpoint.stepIndex, action, evaluation });
+    checkpoint = advanceCheckpoint(checkpoint, evaluation);
+
+    if (haltOnFailure && !evaluation.passed) {
+      return { checkpoint, log, halted: true, reason: 'step_failed' };
+    }
+  }
+
+  return { checkpoint, log, halted: false, reason: 'completed' };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */

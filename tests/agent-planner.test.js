@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -187,5 +187,80 @@ describe('advanceCheckpoint', () => {
     checkpoint = advanceCheckpoint(checkpoint, { passed: false });
     checkpoint = advanceCheckpoint(checkpoint, { passed: true });
     assert.ok(checkpoint.stepIndex <= checkpoint.totalSteps);
+  });
+});
+
+describe('runPlanLoop', () => {
+  it('returns invalid_plan for null input', () => {
+    const result = runPlanLoop(null, []);
+    assert.equal(result.halted, true);
+    assert.equal(result.reason, 'invalid_plan');
+    assert.equal(result.checkpoint, null);
+  });
+
+  it('completes with reason=completed when all steps pass', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+    ];
+    const plan = buildPlan(items);
+    const advanced = items.map(item => {
+      const action = plan.actions.find(a => a.id === item.id);
+      return action ? { ...item, state: action.targetState } : item;
+    });
+    const result = runPlanLoop(plan, advanced);
+    assert.equal(result.halted, false);
+    assert.equal(result.reason, 'completed');
+    assert.equal(result.log.length, plan.actions.length);
+  });
+
+  it('records step, action, and evaluation in each log entry', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Curated', metric: 6, date: '2025-01-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const result = runPlanLoop(plan, items);
+    assert.equal(result.log.length, plan.actions.length);
+    const entry = result.log[0];
+    assert.ok('step' in entry && 'action' in entry && 'evaluation' in entry);
+  });
+
+  it('halts with reason=step_failed on first failure when haltOnFailure=true', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+    ];
+    const plan = buildPlan(items);
+    const result = runPlanLoop(plan, items, { haltOnFailure: true });
+    assert.equal(result.halted, true);
+    assert.equal(result.reason, 'step_failed');
+    assert.equal(result.log.length, 1);
+  });
+
+  it('halts with reason=max_steps_exceeded when maxSteps cap is reached', () => {
+    const items = Array.from({ length: 5 }, (_, i) => ({
+      id: `item-${i}`, title: `Item ${i}`, state: 'Collected',
+      metric: 2, date: '2025-01-01', category: 'Quote',
+    }));
+    const plan = buildPlan(items);
+    const result = runPlanLoop(plan, items, { maxSteps: 2 });
+    assert.equal(result.halted, true);
+    assert.equal(result.reason, 'max_steps_exceeded');
+    assert.ok(result.log.length <= 2);
+  });
+
+  it('final checkpoint stepIndex equals total steps after full run', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const advanced = items.map(item => {
+      const action = plan.actions.find(a => a.id === item.id);
+      return action ? { ...item, state: action.targetState } : item;
+    });
+    const result = runPlanLoop(plan, advanced);
+    assert.equal(result.checkpoint.stepIndex, plan.actions.length);
+    assert.equal(result.checkpoint.passed.length, plan.actions.length);
+    assert.ok(result.checkpoint.passed.every(Boolean));
   });
 });
