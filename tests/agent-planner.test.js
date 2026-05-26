@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -307,6 +307,46 @@ describe('filterPlanActions', () => {
     assert.ok(filtered.actions.every(a => a.urgency >= 0.5));
     assert.ok(filtered.actions.length < originalCount);
     assert.equal(plan.actions.length, originalCount);
+  });
+});
+
+describe('diffPlans', () => {
+  it('reports stable=true for identical plans', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Curated', metric: 6, date: '2025-01-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const diff = diffPlans(plan, plan);
+    assert.equal(diff.stable, true);
+    assert.deepEqual(diff.added, []);
+    assert.deepEqual(diff.removed, []);
+    assert.deepEqual(diff.reordered, []);
+  });
+
+  it('detects added and removed action ids', () => {
+    const prev = { actions: [{ id: 'a' }, { id: 'b' }] };
+    const next = { actions: [{ id: 'b' }, { id: 'c' }] };
+    const diff = diffPlans(prev, next);
+    assert.deepEqual(diff.added, ['c']);
+    assert.deepEqual(diff.removed, ['a']);
+    assert.equal(diff.stable, false);
+  });
+
+  it('detects reordered shared ids without flagging them as added/removed', () => {
+    const prev = { actions: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] };
+    const next = { actions: [{ id: 'c' }, { id: 'a' }, { id: 'b' }] };
+    const diff = diffPlans(prev, next);
+    assert.deepEqual(diff.added, []);
+    assert.deepEqual(diff.removed, []);
+    assert.ok(diff.reordered.length > 0);
+    assert.equal(diff.stable, false);
+  });
+
+  it('treats null/invalid plans as empty action lists', () => {
+    const diff = diffPlans(null, { actions: [{ id: 'x' }] });
+    assert.deepEqual(diff.added, ['x']);
+    assert.deepEqual(diff.removed, []);
   });
 });
 

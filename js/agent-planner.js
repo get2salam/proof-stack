@@ -175,6 +175,24 @@ export function summarizePlanRun(result) {
 }
 
 /**
+ * Diff two plans (typically a prior plan and a freshly rebuilt one) to surface
+ * which action ids were added, removed, or reordered. Lets a re-planning agent
+ * decide whether to keep executing the current queue or restart from the top
+ * without walking both action arrays itself.
+ */
+export function diffPlans(prevPlan, nextPlan) {
+  const prevIds = Array.isArray(prevPlan?.actions) ? prevPlan.actions.map(a => a.id) : [];
+  const nextIds = Array.isArray(nextPlan?.actions) ? nextPlan.actions.map(a => a.id) : [];
+  const prevSet = new Set(prevIds);
+  const nextSet = new Set(nextIds);
+  const added = nextIds.filter(id => !prevSet.has(id));
+  const removed = prevIds.filter(id => !nextSet.has(id));
+  const shared = nextIds.filter(id => prevSet.has(id));
+  const reordered = shared.filter(id => prevIds.indexOf(id) !== nextIds.indexOf(id));
+  return { added, removed, reordered, stable: added.length === 0 && removed.length === 0 && reordered.length === 0 };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */
