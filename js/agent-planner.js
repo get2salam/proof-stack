@@ -141,6 +141,21 @@ export function runPlanLoop(plan, items, { maxSteps = 50, haltOnFailure = false 
 }
 
 /**
+ * Filter a plan's actions to only those at or above a minimum urgency.
+ * Returns a new plan object; the input plan is not mutated. Lets agents
+ * focus exclusively on high-priority work and skip lower-urgency items
+ * that buildPlan would otherwise queue for completeness.
+ */
+export function filterPlanActions(plan, minUrgency = 0) {
+  if (!plan || !Array.isArray(plan.actions)) {
+    return { actions: [], gaps: [], confidence: 0, summary: 'Invalid plan.' };
+  }
+  const threshold = Number.isFinite(minUrgency) ? minUrgency : 0;
+  const actions = plan.actions.filter(action => (action.urgency ?? 0) >= threshold);
+  return { ...plan, actions };
+}
+
+/**
  * Summarize a completed plan run for human/LLM audit consumption.
  * Aggregates pass/fail counts, the termination reason, and the ids of
  * failed steps so callers can render a single-glance audit line without

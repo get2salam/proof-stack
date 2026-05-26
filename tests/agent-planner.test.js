@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -277,6 +277,36 @@ describe('runPlanLoop', () => {
     assert.equal(result.checkpoint.stepIndex, plan.actions.length);
     assert.equal(result.checkpoint.passed.length, plan.actions.length);
     assert.ok(result.checkpoint.passed.every(Boolean));
+  });
+});
+
+describe('filterPlanActions', () => {
+  it('returns empty plan-like object for null input', () => {
+    const filtered = filterPlanActions(null, 0.5);
+    assert.deepEqual(filtered.actions, []);
+    assert.equal(filtered.confidence, 0);
+  });
+
+  it('keeps all actions when threshold is 0', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Curated', metric: 6, date: '2025-01-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    assert.equal(filterPlanActions(plan, 0).actions.length, plan.actions.length);
+  });
+
+  it('drops actions below the urgency threshold and does not mutate input', () => {
+    const items = [
+      { id: 'stale', title: 'Stale', state: 'Collected', metric: 1, date: '2024-01-01', category: 'Quote' },
+      { id: 'fresh', title: 'Fresh', state: 'Published', metric: 10, date: '2026-05-20', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const originalCount = plan.actions.length;
+    const filtered = filterPlanActions(plan, 0.5);
+    assert.ok(filtered.actions.every(a => a.urgency >= 0.5));
+    assert.ok(filtered.actions.length < originalCount);
+    assert.equal(plan.actions.length, originalCount);
   });
 });
 
