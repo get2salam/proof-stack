@@ -175,6 +175,22 @@ export function summarizePlanRun(result) {
 }
 
 /**
+ * Build a retry plan containing only the actions a prior run summary
+ * marked as failed. Complements summarizePlanRun: feed its output back in
+ * to produce a focused plan an agent can re-execute without re-running
+ * already-passing steps. Preserves original action order; returns an empty
+ * plan-shaped object when there are no failures to retry.
+ */
+export function retryFailedActions(plan, summary) {
+  if (!plan || !Array.isArray(plan.actions)) {
+    return { actions: [], gaps: [], confidence: 0, summary: 'Invalid plan.' };
+  }
+  const failedIds = new Set(Array.isArray(summary?.failedIds) ? summary.failedIds : []);
+  const actions = plan.actions.filter(action => failedIds.has(action.id));
+  return { ...plan, actions };
+}
+
+/**
  * Diff two plans (typically a prior plan and a freshly rebuilt one) to surface
  * which action ids were added, removed, or reordered. Lets a re-planning agent
  * decide whether to keep executing the current queue or restart from the top

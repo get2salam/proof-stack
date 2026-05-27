@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -347,6 +347,50 @@ describe('diffPlans', () => {
     const diff = diffPlans(null, { actions: [{ id: 'x' }] });
     assert.deepEqual(diff.added, ['x']);
     assert.deepEqual(diff.removed, []);
+  });
+});
+
+describe('retryFailedActions', () => {
+  it('returns empty plan-like object for null input', () => {
+    const retry = retryFailedActions(null, { failedIds: ['a'] });
+    assert.deepEqual(retry.actions, []);
+    assert.equal(retry.confidence, 0);
+  });
+
+  it('returns no actions when summary has no failures', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Curated', metric: 6, date: '2025-01-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const retry = retryFailedActions(plan, { failedIds: [] });
+    assert.equal(retry.actions.length, 0);
+  });
+
+  it('keeps only actions whose ids appear in failedIds and preserves order', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Outcome' },
+      { id: 'c', title: 'C', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Screenshot' },
+    ];
+    const plan = buildPlan(items);
+    const originalOrder = plan.actions.map(a => a.id);
+    const retry = retryFailedActions(plan, { failedIds: ['c', 'a'] });
+    const retryOrder = retry.actions.map(a => a.id);
+    assert.deepEqual(retryOrder, originalOrder.filter(id => id === 'a' || id === 'c'));
+    assert.equal(plan.actions.length, 3);
+  });
+
+  it('round-trips with summarizePlanRun to produce a retry-ready plan', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const summary = summarizePlanRun(runPlanLoop(plan, items));
+    const retry = retryFailedActions(plan, summary);
+    assert.equal(retry.actions.length, summary.failedIds.length);
+    assert.ok(retry.actions.every(a => summary.failedIds.includes(a.id)));
   });
 });
 
