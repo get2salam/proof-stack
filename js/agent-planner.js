@@ -209,6 +209,26 @@ export function diffPlans(prevPlan, nextPlan) {
 }
 
 /**
+ * Combine multiple plan run results into a single result-shaped object.
+ * Complements retryFailedActions: an original run plus one or more retry runs
+ * can be folded into one audit log and one terminal reason without callers
+ * splicing logs by hand. The merged reason is the last non-'completed' reason
+ * encountered, or 'completed' when every run finished cleanly.
+ */
+export function mergePlanRuns(runs) {
+  const valid = (Array.isArray(runs) ? runs : []).filter(r => r && Array.isArray(r.log));
+  if (valid.length === 0) {
+    return { checkpoint: null, log: [], halted: true, reason: 'invalid_runs' };
+  }
+  const log = valid.flatMap(r => r.log);
+  const checkpoint = valid[valid.length - 1].checkpoint ?? null;
+  const halted = valid.some(r => r.halted);
+  const nonComplete = valid.map(r => r.reason).filter(r => r && r !== 'completed');
+  const reason = nonComplete.length > 0 ? nonComplete[nonComplete.length - 1] : 'completed';
+  return { checkpoint, log, halted, reason };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */

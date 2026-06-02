@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -391,6 +391,41 @@ describe('retryFailedActions', () => {
     const retry = retryFailedActions(plan, summary);
     assert.equal(retry.actions.length, summary.failedIds.length);
     assert.ok(retry.actions.every(a => summary.failedIds.includes(a.id)));
+  });
+});
+
+describe('mergePlanRuns', () => {
+  it('returns invalid_runs for empty or non-array input', () => {
+    const merged = mergePlanRuns([]);
+    assert.equal(merged.reason, 'invalid_runs');
+    assert.equal(merged.halted, true);
+    assert.equal(merged.log.length, 0);
+    assert.equal(mergePlanRuns(null).reason, 'invalid_runs');
+  });
+
+  it('concatenates logs from an original and retry run in order', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Outcome' },
+    ];
+    const plan = buildPlan(items);
+    const firstRun = runPlanLoop(plan, items);
+    const retryRun = runPlanLoop(retryFailedActions(plan, summarizePlanRun(firstRun)), items);
+    const merged = mergePlanRuns([firstRun, retryRun]);
+    assert.equal(merged.log.length, firstRun.log.length + retryRun.log.length);
+    assert.equal(merged.reason, 'completed');
+  });
+
+  it('surfaces a non-completed reason when any merged run halted', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Quote' },
+    ];
+    const plan = buildPlan(items);
+    const okRun = runPlanLoop(plan, items.map(i => ({ ...i, state: 'Curated' })));
+    const haltedRun = runPlanLoop(plan, items, { haltOnFailure: true });
+    const merged = mergePlanRuns([okRun, haltedRun]);
+    assert.equal(merged.halted, true);
+    assert.equal(merged.reason, 'step_failed');
   });
 });
 
