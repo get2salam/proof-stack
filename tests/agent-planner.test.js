@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -474,6 +474,37 @@ describe('planProgress', () => {
     assert.equal(progress.percentComplete, 1);
     assert.equal(progress.stepsRemaining, 0);
     assert.equal(progress.passRate, 0);
+  });
+});
+
+describe('forecastConfidence', () => {
+  it('returns zeroes for null or zero-step checkpoint', () => {
+    assert.equal(forecastConfidence(null).projectedConfidence, 0);
+    assert.equal(forecastConfidence({ totalSteps: 0 }).projectedConfidence, 0);
+  });
+
+  it('projects baseline confidence when every observed step has passed', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    let checkpoint = createPlanCheckpoint(buildPlan(items));
+    checkpoint = advanceCheckpoint(checkpoint, { passed: true });
+    const forecast = forecastConfidence(checkpoint);
+    assert.equal(forecast.projectedPassRate, 1);
+    assert.equal(forecast.projectedConfidence, checkpoint.baselineConfidence);
+  });
+
+  it('projects degraded confidence when observed pass rate is below 1', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    let checkpoint = createPlanCheckpoint(buildPlan(items));
+    checkpoint = advanceCheckpoint(checkpoint, { passed: false });
+    const forecast = forecastConfidence(checkpoint);
+    assert.ok(forecast.projectedConfidence < checkpoint.baselineConfidence);
+    assert.ok(forecast.projectedPassRate < 1);
   });
 });
 

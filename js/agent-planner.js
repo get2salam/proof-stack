@@ -253,6 +253,27 @@ export function planProgress(checkpoint) {
 }
 
 /**
+ * Project a checkpoint's final confidence if remaining steps maintain the
+ * pass rate observed so far. Complements planProgress (which reports the
+ * completed-so-far state) by giving agents a forward-looking signal — they
+ * can early-halt and re-plan when the projection falls below a threshold
+ * instead of running every step to discover the run was doomed.
+ */
+export function forecastConfidence(checkpoint) {
+  if (!checkpoint || typeof checkpoint.totalSteps !== 'number' || checkpoint.totalSteps === 0) {
+    return { projectedPassCount: 0, projectedPassRate: 0, projectedConfidence: 0 };
+  }
+  const done = Math.min(checkpoint.stepIndex ?? 0, checkpoint.totalSteps);
+  const passes = checkpoint.passCount ?? 0;
+  const observedRate = done > 0 ? passes / done : 0;
+  const remaining = checkpoint.totalSteps - done;
+  const projectedPassCount = passes + Math.round(observedRate * remaining);
+  const projectedPassRate = +(projectedPassCount / checkpoint.totalSteps).toFixed(2);
+  const projectedConfidence = +((checkpoint.baselineConfidence ?? 0) * projectedPassRate).toFixed(2);
+  return { projectedPassCount, projectedPassRate, projectedConfidence };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */
