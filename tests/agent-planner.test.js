@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -426,6 +426,54 @@ describe('mergePlanRuns', () => {
     const merged = mergePlanRuns([okRun, haltedRun]);
     assert.equal(merged.halted, true);
     assert.equal(merged.reason, 'step_failed');
+  });
+});
+
+describe('planProgress', () => {
+  it('returns zeroes for null or invalid checkpoint', () => {
+    const progress = planProgress(null);
+    assert.equal(progress.stepsCompleted, 0);
+    assert.equal(progress.stepsRemaining, 0);
+    assert.equal(progress.percentComplete, 0);
+    assert.equal(progress.isComplete, false);
+  });
+
+  it('reports zero progress for a fresh checkpoint', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    const checkpoint = createPlanCheckpoint(buildPlan(items));
+    const progress = planProgress(checkpoint);
+    assert.equal(progress.stepsCompleted, 0);
+    assert.equal(progress.stepsRemaining, checkpoint.totalSteps);
+    assert.equal(progress.passRate, 0);
+    assert.equal(progress.isComplete, false);
+  });
+
+  it('reports partial progress and current pass rate mid-run', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    let checkpoint = createPlanCheckpoint(buildPlan(items));
+    checkpoint = advanceCheckpoint(checkpoint, { passed: true });
+    const progress = planProgress(checkpoint);
+    assert.equal(progress.stepsCompleted, 1);
+    assert.equal(progress.stepsRemaining, checkpoint.totalSteps - 1);
+    assert.equal(progress.passRate, 1);
+    assert.equal(progress.isComplete, false);
+  });
+
+  it('flips to isComplete=true once every step has advanced', () => {
+    const items = [{ id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' }];
+    let checkpoint = createPlanCheckpoint(buildPlan(items));
+    checkpoint = advanceCheckpoint(checkpoint, { passed: false });
+    const progress = planProgress(checkpoint);
+    assert.equal(progress.isComplete, true);
+    assert.equal(progress.percentComplete, 1);
+    assert.equal(progress.stepsRemaining, 0);
+    assert.equal(progress.passRate, 0);
   });
 });
 

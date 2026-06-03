@@ -229,6 +229,30 @@ export function mergePlanRuns(runs) {
 }
 
 /**
+ * Report mid-flight progress for a plan checkpoint. Complements summarizePlanRun
+ * (which operates on a terminal run result) by letting callers render progress
+ * while a runPlanLoop call is paused, resumed, or driven step-by-step from
+ * outside. Pure read of checkpoint fields; does not mutate the input.
+ */
+export function planProgress(checkpoint) {
+  if (!checkpoint || typeof checkpoint.totalSteps !== 'number') {
+    return { stepsCompleted: 0, stepsRemaining: 0, percentComplete: 0, passRate: 0, isComplete: false };
+  }
+  const total = checkpoint.totalSteps;
+  const done = Math.min(checkpoint.stepIndex ?? 0, total);
+  const remaining = Math.max(total - done, 0);
+  const percentComplete = total > 0 ? +(done / total).toFixed(2) : 0;
+  const passRate = done > 0 ? +((checkpoint.passCount ?? 0) / done).toFixed(2) : 0;
+  return {
+    stepsCompleted: done,
+    stepsRemaining: remaining,
+    percentComplete,
+    passRate,
+    isComplete: total > 0 && done >= total,
+  };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */
