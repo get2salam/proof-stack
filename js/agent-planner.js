@@ -274,6 +274,27 @@ export function forecastConfidence(checkpoint) {
 }
 
 /**
+ * Decide whether an in-progress run should be aborted based on its projected
+ * confidence. Wraps forecastConfidence with a threshold check so agents can
+ * early-halt and re-plan instead of running the remaining steps to discover
+ * the run was doomed. Returns abort=false until at least one step has been
+ * observed, since the projection is uninformative before then.
+ */
+export function shouldAbortRun(checkpoint, minConfidence = 0.5) {
+  const forecast = forecastConfidence(checkpoint);
+  const observed = Math.min(checkpoint?.stepIndex ?? 0, checkpoint?.totalSteps ?? 0);
+  if (observed === 0) {
+    return { abort: false, projectedConfidence: forecast.projectedConfidence, reason: 'insufficient_data' };
+  }
+  const abort = forecast.projectedConfidence < minConfidence;
+  return {
+    abort,
+    projectedConfidence: forecast.projectedConfidence,
+    reason: abort ? 'below_threshold' : 'within_threshold',
+  };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */

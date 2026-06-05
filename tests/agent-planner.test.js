@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence, shouldAbortRun } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -505,6 +505,44 @@ describe('forecastConfidence', () => {
     const forecast = forecastConfidence(checkpoint);
     assert.ok(forecast.projectedConfidence < checkpoint.baselineConfidence);
     assert.ok(forecast.projectedPassRate < 1);
+  });
+});
+
+describe('shouldAbortRun', () => {
+  it('reports insufficient_data for a fresh checkpoint with no observed steps', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    const checkpoint = createPlanCheckpoint(buildPlan(items));
+    const decision = shouldAbortRun(checkpoint, 0.9);
+    assert.equal(decision.abort, false);
+    assert.equal(decision.reason, 'insufficient_data');
+  });
+
+  it('signals abort when projected confidence falls below the threshold', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 2, date: '2025-01-01', category: 'Outcome' },
+    ];
+    let checkpoint = createPlanCheckpoint(buildPlan(items));
+    checkpoint = advanceCheckpoint(checkpoint, { passed: false });
+    const decision = shouldAbortRun(checkpoint, 0.5);
+    assert.equal(decision.abort, true);
+    assert.equal(decision.reason, 'below_threshold');
+    assert.ok(decision.projectedConfidence < 0.5);
+  });
+
+  it('stays within threshold while observed steps continue to pass', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Outcome' },
+    ];
+    let checkpoint = createPlanCheckpoint(buildPlan(items));
+    checkpoint = advanceCheckpoint(checkpoint, { passed: true });
+    const decision = shouldAbortRun(checkpoint, 0);
+    assert.equal(decision.abort, false);
+    assert.equal(decision.reason, 'within_threshold');
   });
 });
 
