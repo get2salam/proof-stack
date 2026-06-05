@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence, shouldAbortRun } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence, shouldAbortRun, compareSummaries } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -543,6 +543,34 @@ describe('shouldAbortRun', () => {
     const decision = shouldAbortRun(checkpoint, 0);
     assert.equal(decision.abort, false);
     assert.equal(decision.reason, 'within_threshold');
+  });
+});
+
+describe('compareSummaries', () => {
+  it('reports recovered ids when a retry resolves prior failures', () => {
+    const before = { failedIds: ['a', 'b'], passRate: 0 };
+    const after = { failedIds: [], passRate: 1 };
+    const delta = compareSummaries(before, after);
+    assert.deepEqual(delta.recovered.sort(), ['a', 'b']);
+    assert.deepEqual(delta.regressed, []);
+    assert.equal(delta.passRateDelta, 1);
+    assert.equal(delta.improved, true);
+  });
+
+  it('reports regressed ids when previously-passing steps fail on a re-run', () => {
+    const before = { failedIds: ['a'], passRate: 0.5 };
+    const after = { failedIds: ['a', 'c'], passRate: 0 };
+    const delta = compareSummaries(before, after);
+    assert.deepEqual(delta.recovered, []);
+    assert.deepEqual(delta.regressed, ['c']);
+    assert.ok(delta.passRateDelta < 0);
+    assert.equal(delta.improved, false);
+  });
+
+  it('treats null/missing summaries as empty failure sets', () => {
+    const delta = compareSummaries(null, { failedIds: ['x'], passRate: 0 });
+    assert.deepEqual(delta.recovered, []);
+    assert.deepEqual(delta.regressed, ['x']);
   });
 });
 

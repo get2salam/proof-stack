@@ -295,6 +295,28 @@ export function shouldAbortRun(checkpoint, minConfidence = 0.5) {
 }
 
 /**
+ * Compare two plan-run summaries (typically a baseline run and a retry run) and
+ * report what changed. Complements summarizePlanRun + retryFailedActions by
+ * answering the practical question: "did the retry actually recover failures?"
+ * Returns counts of recovered (previously-failed ids now absent) and regressed
+ * (newly-failed ids) along with the pass-rate delta, so callers can decide
+ * whether further retries are worthwhile.
+ */
+export function compareSummaries(before, after) {
+  const beforeFailed = new Set(Array.isArray(before?.failedIds) ? before.failedIds : []);
+  const afterFailed = new Set(Array.isArray(after?.failedIds) ? after.failedIds : []);
+  const recovered = [...beforeFailed].filter(id => !afterFailed.has(id));
+  const regressed = [...afterFailed].filter(id => !beforeFailed.has(id));
+  const passRateDelta = +(((after?.passRate ?? 0) - (before?.passRate ?? 0))).toFixed(2);
+  return {
+    recovered,
+    regressed,
+    passRateDelta,
+    improved: recovered.length > regressed.length,
+  };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */
