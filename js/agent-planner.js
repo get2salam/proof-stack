@@ -317,6 +317,26 @@ export function compareSummaries(before, after) {
 }
 
 /**
+ * Identify ids that appear as failures in every provided run summary — items
+ * that successive retries have not recovered and likely warrant agent
+ * escalation or removal from the plan. Complements compareSummaries (which is
+ * pairwise) by aggregating across an arbitrary series of runs. Returns the
+ * shared-failure ids sorted for stable rendering.
+ */
+export function findChronicFailures(summaries) {
+  const valid = (Array.isArray(summaries) ? summaries : []).filter(s => Array.isArray(s?.failedIds));
+  if (valid.length === 0) return [];
+  const persistent = new Set(valid[0].failedIds);
+  for (let i = 1; i < valid.length; i++) {
+    const ids = new Set(valid[i].failedIds);
+    for (const id of persistent) {
+      if (!ids.has(id)) persistent.delete(id);
+    }
+  }
+  return [...persistent].sort();
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */

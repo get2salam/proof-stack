@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence, shouldAbortRun, compareSummaries } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence, shouldAbortRun, compareSummaries, findChronicFailures } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -571,6 +571,32 @@ describe('compareSummaries', () => {
     const delta = compareSummaries(null, { failedIds: ['x'], passRate: 0 });
     assert.deepEqual(delta.recovered, []);
     assert.deepEqual(delta.regressed, ['x']);
+  });
+});
+
+describe('findChronicFailures', () => {
+  it('returns empty array for empty or non-array input', () => {
+    assert.deepEqual(findChronicFailures([]), []);
+    assert.deepEqual(findChronicFailures(null), []);
+  });
+
+  it('returns ids that fail in every provided summary', () => {
+    const summaries = [
+      { failedIds: ['a', 'b', 'c'] },
+      { failedIds: ['b', 'c', 'd'] },
+      { failedIds: ['c', 'b'] },
+    ];
+    assert.deepEqual(findChronicFailures(summaries), ['b', 'c']);
+  });
+
+  it('returns empty when a retry recovered every prior failure', () => {
+    const summaries = [{ failedIds: ['a', 'b'] }, { failedIds: [] }];
+    assert.deepEqual(findChronicFailures(summaries), []);
+  });
+
+  it('skips summaries with no failedIds field instead of throwing', () => {
+    const summaries = [{ failedIds: ['a'] }, null, { failedIds: ['a'] }];
+    assert.deepEqual(findChronicFailures(summaries), ['a']);
   });
 });
 
