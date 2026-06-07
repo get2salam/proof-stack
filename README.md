@@ -39,6 +39,19 @@ Then open <http://localhost:8000>.
 Both shortcuts only fire when no input is focused and no modifier key (`Cmd`,
 `Ctrl`, or `Alt`) is held, so system shortcuts like `Cmd`+`N` keep working.
 
+## Verifying changes
+
+The agent-planner module ships with a Node-native test suite (`node:test`). To
+run it locally:
+
+```bash
+npm test
+```
+
+The same command runs on every push and pull request via the GitHub Actions
+workflow in `.github/workflows/test.yml`, against the current Node LTS lines
+(20, 22, and 24).
+
 ## Privacy
 
 Everything stays in your browser unless you export a JSON backup.
