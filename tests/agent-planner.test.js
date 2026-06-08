@@ -68,6 +68,42 @@ describe('buildPlan', () => {
     const plan = buildPlan(items);
     assert.ok(plan.summary.length > 0);
   });
+
+  it('produces finite urgency and confidence when item.date is unparseable', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 5, date: 'not-a-date', category: 'Quote' },
+    ];
+    const plan = buildPlan(items);
+    assert.ok(Number.isFinite(plan.actions[0].urgency), 'urgency must be finite for malformed date');
+    assert.ok(Number.isFinite(plan.confidence), 'confidence must be finite for malformed date');
+    assert.ok(!plan.summary.includes('NaN'), 'summary must not render NaN');
+  });
+
+  it('produces finite urgency when item.metric is non-numeric or NaN', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Collected', metric: 'high', date: '2026-05-01', category: 'Quote' },
+      { id: 'b', title: 'B', state: 'Collected', metric: NaN, date: '2026-05-01', category: 'Quote' },
+    ];
+    const plan = buildPlan(items);
+    assert.ok(plan.actions.every(a => Number.isFinite(a.urgency)));
+    assert.ok(Number.isFinite(plan.confidence));
+  });
+
+  it('clamps out-of-range numeric metrics into the trust calculation', () => {
+    const tooHigh = [{ id: 'h', title: 'H', state: 'Collected', metric: 999, date: '2026-05-01', category: 'Quote' }];
+    const tooLow = [{ id: 'l', title: 'L', state: 'Collected', metric: -50, date: '2026-05-01', category: 'Quote' }];
+    assert.ok(Number.isFinite(buildPlan(tooHigh).actions[0].urgency));
+    assert.ok(Number.isFinite(buildPlan(tooLow).actions[0].urgency));
+  });
+
+  it('treats an unrecognized item.state as the entry state instead of going off-scale', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'TypoState', metric: 5, date: '2026-05-01', category: 'Quote' },
+    ];
+    const plan = buildPlan(items);
+    assert.equal(plan.actions[0].targetState, 'Collected');
+    assert.ok(Number.isFinite(plan.actions[0].urgency));
+  });
 });
 
 describe('evaluateStep', () => {

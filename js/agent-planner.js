@@ -11,15 +11,25 @@ const GAP_MIN_COUNT = 2;
 
 function daysSince(isoDate) {
   if (!isoDate) return Infinity;
-  return (Date.now() - new Date(isoDate).getTime()) / 86_400_000;
+  const ms = new Date(isoDate).getTime();
+  // Unparseable date strings (e.g. 'not-a-date') yield NaN; treat them as
+  // maximally stale so they don't poison urgency arithmetic downstream.
+  return Number.isFinite(ms) ? (Date.now() - ms) / 86_400_000 : Infinity;
+}
+
+// Coerce metric to a finite number in [0, 10]; fall back to the neutral 5
+// when the field is missing or non-numeric so trustGap can never go NaN.
+function safeMetric(metric) {
+  if (typeof metric !== 'number' || !Number.isFinite(metric)) return 5;
+  return Math.min(Math.max(metric, 0), 10);
 }
 
 // Score urgency for agent prioritization: higher = needs attention sooner.
 function itemUrgency(item) {
   const stateIdx = ADVANCE_ORDER.indexOf(item.state ?? 'Collected');
-  const stateProgress = (stateIdx + 1) / ADVANCE_ORDER.length;
+  const stateProgress = stateIdx >= 0 ? (stateIdx + 1) / ADVANCE_ORDER.length : 1 / ADVANCE_ORDER.length;
   const staleness = Math.min(daysSince(item.date) / STALE_THRESHOLD_DAYS, 1);
-  const trustGap = Math.max(0, 1 - (item.metric ?? 5) / 10);
+  const trustGap = Math.max(0, 1 - safeMetric(item.metric) / 10);
   return +(staleness * 0.4 + trustGap * 0.35 + (1 - stateProgress) * 0.25).toFixed(3);
 }
 
