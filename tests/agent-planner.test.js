@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence, shouldAbortRun, compareSummaries, findChronicFailures } from '../js/agent-planner.js';
+import { buildPlan, evaluateStep, createPlanCheckpoint, advanceCheckpoint, runPlanLoop, summarizePlanRun, filterPlanActions, diffPlans, retryFailedActions, mergePlanRuns, planProgress, forecastConfidence, shouldAbortRun, compareSummaries, findChronicFailures, scorePlanReadiness } from '../js/agent-planner.js';
 
 describe('buildPlan', () => {
   it('returns empty plan for empty array', () => {
@@ -654,5 +654,52 @@ describe('summarizePlanRun', () => {
     assert.equal(summary.failCount, plan.actions.length);
     assert.equal(summary.passRate, 0);
     assert.ok(summary.failedIds.includes('a') && summary.failedIds.includes('b'));
+  });
+});
+
+describe('scorePlanReadiness', () => {
+  it('returns invalid_plan for null input', () => {
+    const readiness = scorePlanReadiness(null);
+    assert.equal(readiness.ready, false);
+    assert.equal(readiness.score, 0);
+    assert.deepEqual(readiness.issues, ['invalid_plan']);
+  });
+
+  it('passes a stable, high-confidence plan with no gaps or urgent actions', () => {
+    const plan = {
+      actions: [
+        { id: 'a', urgency: 0.2 },
+        { id: 'b', urgency: 0.4 },
+      ],
+      gaps: [],
+      confidence: 0.82,
+    };
+    const readiness = scorePlanReadiness(plan);
+    assert.equal(readiness.ready, true);
+    assert.equal(readiness.score, 100);
+    assert.equal(readiness.checkedActions, 2);
+    assert.deepEqual(readiness.issues, []);
+  });
+
+  it('flags deterministic readiness risks for agent eval gates', () => {
+    const plan = {
+      actions: [
+        { id: 'dup', urgency: 0.9 },
+        { id: 'dup', urgency: 0.2 },
+        { urgency: 0.1 },
+      ],
+      gaps: ['Quote'],
+      confidence: 0.3,
+    };
+    const readiness = scorePlanReadiness(plan, { minConfidence: 0.6, maxUrgency: 0.8 });
+    assert.equal(readiness.ready, false);
+    assert.equal(readiness.score, 10);
+    assert.deepEqual(readiness.issues, [
+      'low_confidence',
+      'category_gaps',
+      'missing_action_id',
+      'duplicate_action_id',
+      'over_urgent_action',
+    ]);
   });
 });

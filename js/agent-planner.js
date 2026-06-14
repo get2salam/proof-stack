@@ -347,6 +347,43 @@ export function findChronicFailures(summaries) {
 }
 
 /**
+ * Score a plan for autonomous execution readiness. This gives CI, eval suites,
+ * or an agent supervisor a deterministic gate before work starts: low baseline
+ * confidence, category gaps, over-urgent queues, missing ids, and duplicate ids
+ * all reduce the score and surface machine-readable issue codes.
+ */
+export function scorePlanReadiness(plan, { minConfidence = 0.5, maxUrgency = 0.85 } = {}) {
+  if (!plan || !Array.isArray(plan.actions)) {
+    return { score: 0, ready: false, issues: ['invalid_plan'], checkedActions: 0 };
+  }
+
+  const issues = [];
+  const confidence = Number.isFinite(plan.confidence) ? plan.confidence : 0;
+  const confidenceThreshold = Number.isFinite(minConfidence) ? minConfidence : 0.5;
+  const urgencyThreshold = Number.isFinite(maxUrgency) ? maxUrgency : 0.85;
+  const ids = plan.actions.map(action => action?.id).filter(id => id != null && id !== '');
+
+  if (plan.actions.length === 0) issues.push('empty_actions');
+  if (confidence < confidenceThreshold) issues.push('low_confidence');
+  if (Array.isArray(plan.gaps) && plan.gaps.length > 0) issues.push('category_gaps');
+  if (ids.length !== plan.actions.length) issues.push('missing_action_id');
+  if (new Set(ids).size !== ids.length) issues.push('duplicate_action_id');
+  if (plan.actions.some(action => (action?.urgency ?? 0) > urgencyThreshold)) issues.push('over_urgent_action');
+
+  const penalties = {
+    empty_actions: 35,
+    low_confidence: 25,
+    category_gaps: 15,
+    missing_action_id: 20,
+    duplicate_action_id: 20,
+    over_urgent_action: 10,
+  };
+  const penalty = issues.reduce((sum, issue) => sum + penalties[issue], 0);
+  const score = Math.max(0, 100 - penalty);
+  return { score, ready: score >= 75 && issues.length === 0, issues, checkedActions: plan.actions.length };
+}
+
+/**
  * Advance a checkpoint by one step, recording pass/fail and updating confidence.
  * Returns updated checkpoint with step tracking for agent audit trails.
  */
