@@ -15,6 +15,18 @@ describe('buildPlan', () => {
     assert.equal(plan.actions.length, 0);
   });
 
+  it('skips malformed item entries instead of throwing', () => {
+    const plan = buildPlan([
+      null,
+      'loose note',
+      ['nested'],
+      { id: 'valid', title: 'Valid proof', state: 'Collected', metric: 5, date: '2026-05-01', category: 'Quote' },
+    ]);
+    assert.equal(plan.actions.length, 1);
+    assert.equal(plan.actions[0].id, 'valid');
+    assert.deepEqual(plan.gaps, ['Quote']);
+  });
+
   it('ranks stale low-trust item above recently-reviewed high-trust item', () => {
     const items = [
       { id: 'a', title: 'Strong asset', state: 'Published', metric: 9, date: '2026-05-01', category: 'Quote' },
@@ -259,6 +271,20 @@ describe('runPlanLoop', () => {
     assert.equal(result.log.length, plan.actions.length);
     const entry = result.log[0];
     assert.ok('step' in entry && 'action' in entry && 'evaluation' in entry);
+  });
+
+  it('ignores malformed execution items while keeping a structured failure log', () => {
+    const plan = {
+      actions: [{ rank: 1, id: 'missing', title: 'Missing proof', currentState: 'Collected', targetState: 'Curated', urgency: 0.8 }],
+      gaps: [],
+      confidence: 0.6,
+      summary: 'manual plan',
+    };
+    const result = runPlanLoop(plan, [null, ['bad'], 'bad']);
+    assert.equal(result.halted, false);
+    assert.equal(result.log.length, 1);
+    assert.equal(result.log[0].evaluation.id, null);
+    assert.equal(result.log[0].evaluation.passed, false);
   });
 
   it('halts with reason=step_failed on first failure when haltOnFailure=true', () => {

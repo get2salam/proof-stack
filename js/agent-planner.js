@@ -9,6 +9,12 @@ const ADVANCE_ORDER = ['Collected', 'Curated', 'Ready', 'Published'];
 const STALE_THRESHOLD_DAYS = 60;
 const GAP_MIN_COUNT = 2;
 
+function normalizeItems(items) {
+  return (Array.isArray(items) ? items : []).filter(item => (
+    item && typeof item === 'object' && !Array.isArray(item)
+  ));
+}
+
 function daysSince(isoDate) {
   if (!isoDate) return Infinity;
   const ms = new Date(isoDate).getTime();
@@ -50,11 +56,12 @@ function detectGaps(items) {
  * Suitable for feeding directly to an agent loop or displaying as AI recommendations.
  */
 export function buildPlan(items) {
-  if (!Array.isArray(items) || items.length === 0) {
+  const proofItems = normalizeItems(items);
+  if (proofItems.length === 0) {
     return { actions: [], gaps: [], confidence: 0, summary: 'No proof assets found.' };
   }
 
-  const scored = items
+  const scored = proofItems
     .map(item => ({ ...item, urgency: itemUrgency(item) }))
     .sort((a, b) => b.urgency - a.urgency);
 
@@ -64,7 +71,7 @@ export function buildPlan(items) {
     return { rank: i + 1, id: item.id, title: item.title, currentState: item.state, targetState, urgency: item.urgency };
   });
 
-  const gaps = detectGaps(items);
+  const gaps = detectGaps(proofItems);
   const avgUrgency = scored.reduce((s, i) => s + i.urgency, 0) / scored.length;
   const confidence = +(1 - avgUrgency).toFixed(2);
 
@@ -124,7 +131,7 @@ export function runPlanLoop(plan, items, { maxSteps = 50, haltOnFailure = false 
   }
 
   const itemMap = new Map(
-    (Array.isArray(items) ? items : []).map(item => [item.id, item])
+    normalizeItems(items).map(item => [item.id, item])
   );
 
   let checkpoint = createPlanCheckpoint(plan);
