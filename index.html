@@ -32,10 +32,10 @@
         <p class="accent">Proof compounds harder when source, best use, and trust lift are visible, not buried in folders.</p>
       </section>
 
-      <section class="stats" data-role="stats"></section>
-      <section class="insights" data-role="insights"></section>
+      <section class="stats" data-role="stats" aria-label="Board statistics"></section>
+      <section class="insights" data-role="insights" aria-label="Key insights"></section>
 
-      <section class="controls card">
+      <section class="controls card" aria-label="Filters">
         <label>
           <span>Search</span>
           <input type="search" data-field="search" placeholder="Search proof assets, notes, and next steps..." />
@@ -51,8 +51,8 @@
         <button class="btn" type="button" data-action="reset">Re-seed sample</button>
       </section>
 
-      <section class="workspace">
-        <article class="card list-panel">
+      <section class="workspace" aria-label="Proof board">
+        <article class="card list-panel" aria-label="Proof assets">
           <div class="panel-head">
             <div>
               <strong>Proof assets</strong>
@@ -65,7 +65,7 @@
         <article class="card editor-panel" data-role="editor"></article>
       </section>
 
-      <section class="secondary">
+      <section class="secondary" aria-label="Queue and mix">
         <article class="card secondary-panel" data-role="secondary-primary"></article>
         <article class="card secondary-panel" data-role="secondary-secondary"></article>
       </section>

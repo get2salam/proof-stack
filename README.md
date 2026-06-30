@@ -33,10 +33,11 @@ Then open <http://localhost:8000>.
 
 ## Keyboard shortcuts
 
-- `N` creates a new proof asset
+- `N` creates a new proof asset and moves focus to the title field
 - `/` focuses the search box
+- `Escape` clears the search box and returns focus to the board (only when the search box is active)
 
-Both shortcuts only fire when no input is focused and no modifier key (`Cmd`,
+`N` and `/` only fire when no input is focused and no modifier key (`Cmd`,
 `Ctrl`, or `Alt`) is held, so system shortcuts like `Cmd`+`N` keep working.
 
 ## Verifying changes

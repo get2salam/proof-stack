@@ -408,6 +408,10 @@ function addItem() {
     ui: { ...state.ui, selectedId: item.id },
   });
   showToast(`Added a new ${SPEC.itemLabel}.`);
+  requestAnimationFrame(() => {
+    const titleField = refs.editor.querySelector('[data-item-field="title"]');
+    if (titleField) titleField.focus();
+  });
 }
 
 function removeSelected() {
@@ -423,6 +427,10 @@ function removeSelected() {
     ui: { ...state.ui, selectedId: nextItems[0]?.id || null },
   });
   showToast(`Removed ${SPEC.itemLabel}.`);
+  requestAnimationFrame(() => {
+    const firstItem = refs.list.querySelector('.item');
+    if (firstItem) firstItem.focus();
+  });
 }
 
 function exportState() {
@@ -772,6 +780,12 @@ document.addEventListener('change', async (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && event.target === refs.search) {
+    event.preventDefault();
+    commit({ ...state, ui: { ...state.ui, search: '' } });
+    refs.search.blur();
+    return;
+  }
   if (event.target.closest('input, textarea, select')) return;
   // Skip when a modifier is held so we never swallow browser/system shortcuts
   // like Cmd+N (new window), Ctrl+N, or Cmd+/ — preventDefault() would
