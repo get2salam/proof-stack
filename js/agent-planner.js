@@ -34,7 +34,10 @@ function safeMetric(metric) {
 function itemUrgency(item) {
   const stateIdx = ADVANCE_ORDER.indexOf(item.state ?? 'Collected');
   const stateProgress = stateIdx >= 0 ? (stateIdx + 1) / ADVANCE_ORDER.length : 1 / ADVANCE_ORDER.length;
-  const staleness = Math.min(daysSince(item.date) / STALE_THRESHOLD_DAYS, 1);
+  // A review date scheduled in the future yields a negative daysSince; floor at 0
+  // so "not due yet" reads as zero staleness instead of dragging urgency (and,
+  // in aggregate, plan.confidence) below the [0, 1] range callers assume.
+  const staleness = Math.max(Math.min(daysSince(item.date) / STALE_THRESHOLD_DAYS, 1), 0);
   const trustGap = Math.max(0, 1 - safeMetric(item.metric) / 10);
   return +(staleness * 0.4 + trustGap * 0.35 + (1 - stateProgress) * 0.25).toFixed(3);
 }

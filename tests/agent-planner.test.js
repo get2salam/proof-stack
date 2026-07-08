@@ -116,6 +116,25 @@ describe('buildPlan', () => {
     assert.equal(plan.actions[0].targetState, 'Collected');
     assert.ok(Number.isFinite(plan.actions[0].urgency));
   });
+
+  it('floors urgency at zero for a review date scheduled in the future instead of going negative', () => {
+    const items = [
+      { id: 'a', title: 'A', state: 'Ready', metric: 9, date: '9999-06-01', category: 'Quote' },
+    ];
+    const plan = buildPlan(items);
+    assert.ok(plan.actions[0].urgency >= 0, 'a not-yet-due item must not carry negative urgency');
+    assert.ok(plan.confidence <= 1, 'confidence must stay within [0, 1] when urgency is floored');
+  });
+
+  it('keeps confidence bounded when a far-future item is mixed with a genuinely overdue one', () => {
+    const items = [
+      { id: 'future', title: 'Scheduled for next year', state: 'Ready', metric: 9, date: '9999-06-01', category: 'Quote' },
+      { id: 'overdue', title: 'Neglected asset', state: 'Collected', metric: 1, date: '2020-01-01', category: 'Screenshot' },
+    ];
+    const plan = buildPlan(items);
+    assert.ok(plan.actions.every(a => a.urgency >= 0 && a.urgency <= 1));
+    assert.ok(plan.confidence >= 0 && plan.confidence <= 1, `confidence ${plan.confidence} must stay within [0, 1]`);
+  });
 });
 
 describe('evaluateStep', () => {
